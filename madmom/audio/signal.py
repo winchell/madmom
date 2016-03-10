@@ -298,6 +298,8 @@ def root_mean_square(signal):
         Root mean square of the signal.
 
     """
+    if signal.ndim > 1:
+        return np.array([root_mean_square(frame) for frame in signal])
     # make sure the signal is a numpy array
     if not isinstance(signal, np.ndarray):
         raise TypeError("Invalid type for signal, must be a numpy array.")
@@ -336,19 +338,18 @@ def sound_pressure_level(signal, p_ref=None):
     """
     # compute the RMS
     rms = root_mean_square(signal)
-    # compute the SPL
-    if rms == 0:
-        # return the smallest possible negative number
-        return -np.finfo(float).max
-    else:
-        if p_ref is None:
-            # find a reasonable default reference value
-            if np.issubdtype(signal.dtype, np.integer):
-                p_ref = float(np.iinfo(signal.dtype).max)
-            else:
-                p_ref = 1.0
-        # normal SPL computation
-        return 20.0 * np.log10(rms / p_ref)
+
+    if p_ref is None:
+        # find a reasonable default reference value
+        if np.issubdtype(signal.dtype, np.integer):
+            p_ref = float(np.iinfo(signal.dtype).max)
+        else:
+            p_ref = 1.0
+
+    # normal SPL computation. ignore warnings when taking the log of 0,
+    # then replace the resulting -inf values with the smallest finite number
+    with np.errstate(divide='ignore'):
+        return np.nan_to_num(20.0 * np.log10(rms / p_ref))
 
 
 def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
@@ -1060,6 +1061,10 @@ class FramedSignal(object):
     def ndim(self):
         """Dimensionality of the FramedSignal."""
         return len(self.shape)
+
+    @property
+    def dtype(self):
+        return self.signal.dtype
 
 
 class FramedSignalProcessor(Processor):
