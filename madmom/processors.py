@@ -666,11 +666,17 @@ class BufferProcessor(Processor):
             Data with buffered context.
 
         """
+        # length of the data
+        data_length = len(data)
         # init the buffer with the same ndarray subclass and data type
         if self.buffer is None:
-            self.buffer = np.repeat(data * 0, self.buffer_size, axis=0)
-        # append the new data and return everything from index 1 on
-        self.buffer = np.vstack((self.buffer, data))[1:]
+            # TODO: find a better way to concatenate two subclassed ndarrays
+            #       which keeps the class/type/dtype intact
+            self.buffer = np.repeat(data[:1] * 0,
+                                    self.buffer_size + data_length, axis=0)
+        # remove `data_length` from buffer at the beginning and append new data
+        self.buffer = np.roll(self.buffer, -data_length, axis=0)
+        self.buffer[-data_length:] = data
         return self.buffer
 
     @staticmethod
@@ -825,10 +831,12 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
         sp.set_defaults(func=process_online)
         # Note: requiring '-o' is a simple safety measure to not overwrite
         #       existing audio files after using the processor in 'batch' mode
-        sp.add_argument('-o', dest='out_stream', type=argparse.FileType('wb'),
+        sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
                         default=output, help='output file [default: STDOUT]')
         sp.add_argument('--block_size', dest='block_size', type=int,
                         default=1, help='number of frames used for processing')
+        sp.set_defaults(sample_rate=44100)
         sp.set_defaults(num_channels=1)
-        sp.set_defaults(num_frames=1)
         sp.set_defaults(origin='future')
+        sp.set_defaults(num_frames=1)
+        sp.set_defaults(stream=None)

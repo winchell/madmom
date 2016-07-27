@@ -19,6 +19,7 @@ from madmom.audio.filters import (Filterbank, LogarithmicFilterbank,
 from madmom.audio.stft import ShortTimeFourierTransform
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
+sample_spec = Spectrogram(sample_file)
 
 
 # test functions
@@ -565,34 +566,40 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.positive_diffs is False)
 
     def test_process(self):
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:1]) == 0)
         self.assertTrue(np.max(result[:2]) >= 0)
         self.assertTrue(np.min(result) < 0)
-        # change diff frames
-        self.processor.diff_frames = 2
-        result = self.processor.process(sample_file)
+        # processing with a signal should set the diff_frames
+
+    def test_diff_frames(self):
+        # re-initialise the processor, because of the buffer
+        self.processor = SpectrogramDifferenceProcessor(diff_frames=2)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) < 0)
-        # change positive diffs
+
+    def test_positive_diffs(self):
+        # re-initialise the processor, because of the buffer
+        self.processor = SpectrogramDifferenceProcessor(diff_frames=2)
         self.processor.positive_diffs = True
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) >= 0)
         # change stacking
         self.processor.stack_diffs = np.hstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024 * 2))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.vstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281 * 2, 1024))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.dstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024, 2))
         self.assertTrue(np.min(result) >= 0)
 
