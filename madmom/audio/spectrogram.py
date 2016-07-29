@@ -882,11 +882,14 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
         """
         # instantiate a LogarithmicFilteredSpectrogram
-        return LogarithmicFilteredSpectrogram(
+        data = LogarithmicFilteredSpectrogram(
             data, filterbank=self.filterbank, num_bands=self.num_bands,
             fmin=self.fmin, fmax=self.fmax, fref=self.fref,
             norm_filters=self.norm_filters, unique_filters=self.unique_filters,
             mul=self.mul, add=self.add, **kwargs)
+        # cache the filterbank
+        self.filterbank = data.filterbank
+        return data
 
 
 # spectrogram difference stuff
