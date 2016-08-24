@@ -1,6 +1,9 @@
 # Compiled Python files
 *.pyc
 
+# Backup files
+*~
+
 # Python distutil files
 /dist/
 /MANIFEST
