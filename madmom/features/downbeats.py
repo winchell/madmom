@@ -12,6 +12,7 @@ from madmom.processors import Processor, ParallelProcessor, SequentialProcessor
 
 from madmom.audio.chroma import CLPChromaProcessor
 from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
+from madmom.features import ActivationsProcessor
 
 import os.path
 
@@ -452,3 +453,51 @@ class DetectBeatsProcessor(SequentialProcessor):
         rnn = RNNBeatProcessor()
         dbn = DBNBeatTrackingProcessor(fps=100)
         super(DetectBeatsProcessor, self).__init__([rnn, dbn])
+
+
+class BarTrackerActivationsProcessor(ActivationsProcessor):
+    """
+        BarTrackerActivationsProcessor processes a file and returns an
+        BarTrackerActivations instance. This class extends the class
+        ActivationsProcessor by saving/loading numpy arrays directly without
+        instantiating Activation objects.
+
+    """
+    def process(self, data, output=None):
+        """
+        Depending on the mode, either loads the data stored in the given file
+        and returns it as an Activations instance or save the data to the given
+        output.
+
+        Parameters
+        ----------
+        data : str, file handle or numpy array
+            Data or file to be loaded (if `mode` is 'r') or data to be saved
+            to file (if `mode` is 'w').
+        output : str or file handle, optional
+            output file (only in write-mode)
+
+        Returns
+        -------
+        :class:`Activations` instance
+            :class:`Activations` instance (only in read-mode)
+
+        """
+        # pylint: disable=arguments-differ
+
+        if self.mode in ('r', 'in', 'load'):
+            ldata = np.load(data)
+            if isinstance(ldata, np.lib.npyio.NpzFile):
+                # .npz file, set the frame rate if none is given
+                data = list([])
+                data.append(ldata['activations'])
+                data.append(ldata['beats'])
+        elif self.mode in ('w', 'out', 'save'):
+            # numpy binary format
+            npz = {'activations': data[0],
+                   'beats': data[1]}
+            np.savez(output, **npz)
+        else:
+            raise ValueError("wrong mode %s; choose {'r', 'w', 'in', 'out', "
+                             "'load', 'save'}")
+        return data

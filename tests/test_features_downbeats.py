@@ -28,13 +28,13 @@ class TestBeatSyncProcessorClass(unittest.TestCase):
         data = list([CLPChroma(sample_file, fps=100)])
         data.append(np.loadtxt(sample_beats))
         feat_sync = self.processor.process(data)
-        target = np.array([0.26559311, 0.14897873, 0.22903995, 0.4171332,
-                           0.1598738, 0.22344749, 0.14074484, 0.16701094,
-                           0.60201389, 0.24119368, 0.23549884, 0.21930203,
-                           0.24890325, 0.13355654, 0.20016374, 0.47378265,
-                           0.18951703, 0.16960049, 0.13912612, 0.18324906,
-                           0.60975746, 0.19958183, 0.17585503, 0.24287562])
-        self.assertTrue(np.allclose(feat_sync[0, :], target, rtol=1e-1))
+        print(feat_sync[0, :])
+        target = [0.28231065, 0.14807641, 0.22790557, 0.41458403, 0.15966462,
+                  0.22294236, 0.1429988, 0.16661506, 0.5978227, 0.24039252,
+                  0.23444982, 0.21910049, 0.25676728, 0.13382165, 0.19957431,
+                  0.47225753, 0.18936998, 0.17014103, 0.14079712, 0.18317944,
+                  0.60692955, 0.20016842, 0.17619181, 0.24408179]
+        self.assertTrue(np.allclose(feat_sync[0, :], target))
 
 
 class TestRNNBarTrackingProcessorClass(unittest.TestCase):
@@ -47,8 +47,9 @@ class TestRNNBarTrackingProcessorClass(unittest.TestCase):
         params = {'load_beats': True, 'beat_files': list([sample_beats]),
                   'beat_suffix': '.beats'}
         activations, beats = self.processor.process(sample_file, params)
-        target = np.array([0.48208269, 0.12524545, 0.1998145])
-        self.assertTrue(np.allclose(activations, target, rtol=1e-2))
+        print(activations)
+        target = [0.4819403, 0.1262536, 0.1980488]
+        self.assertTrue(np.allclose(activations, target))
 
 
 class TestDBNBarTrackingProcessorClass(unittest.TestCase):

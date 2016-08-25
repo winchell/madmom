@@ -7,12 +7,11 @@ BarTracker (down-)beat detection algorithm.
 from __future__ import absolute_import, division, print_function
 import warnings
 import argparse
-from madmom.processors import (SequentialProcessor, IOProcessor,
-                               io_arguments, ParallelProcessor)
-from madmom.utils import search_files, match_file, strip_suffix
+from madmom.processors import IOProcessor, io_arguments
+from madmom.utils import search_files, match_file
 from madmom.features import ActivationsProcessor
-from madmom.features.downbeats import DBNBarTrackingProcessor, \
-    RNNBarProcessor, LoadBeatsProcessor, DetectBeatsProcessor
+from madmom.features.downbeats import (
+    DBNBarTrackingProcessor, RNNBarProcessor, BarTrackerActivationsProcessor)
 import os.path
 
 
@@ -99,26 +98,36 @@ def main():
     # parse arguments
     args = p.parse_args()
 
-    # First, beats are detected/loaded to synchronise the input features
-    if args.load_beats:
-        # load beats from file
-        audio_files, beat_files = match_files(args.files, args.beat_suffix)
-        args.files = audio_files
-        args.beat_files = beat_files
-
-    # Process beat-synchronous features with an RNN
-    rnn_activations = RNNBarProcessor()
-
-    # Post-processing with a dynamic Bayesian network
-    bar_dbn_processor = DBNBarTrackingProcessor(**vars(args))
-    if args.downbeats:
-        # simply write the timestamps
-        from madmom.utils import write_events as writer
+    # input processor
+    if args.load:
+        # load the activations from file
+        rnn_activations = BarTrackerActivationsProcessor(mode='r',
+                                                         **vars(args))
     else:
-        # borrow the note writer for outputting timestamps + beat numbers
-        from madmom.features.notes import write_notes as writer
-        # sequentially process them
-    out_processor = [bar_dbn_processor, writer]
+        # First, beats are detected/loaded to synchronise the input features
+        if args.load_beats:
+            # load beats from file
+            audio_files, beat_files = match_files(args.files, args.beat_suffix)
+            args.files = audio_files
+            args.beat_files = beat_files
+        # Process beat-synchronous features with an RNN
+        rnn_activations = RNNBarProcessor()
+
+    # output processor
+    if args.save:
+        # save the RNN beat activations to file
+        out_processor = BarTrackerActivationsProcessor(mode='w', **vars(args))
+    else:
+        # Post-processing with a dynamic Bayesian network
+        bar_dbn_processor = DBNBarTrackingProcessor(**vars(args))
+        if args.downbeats:
+            # simply write the timestamps
+            from madmom.utils import write_events as writer
+        else:
+            # borrow the note writer for outputting timestamps + beat numbers
+            from madmom.features.notes import write_notes as writer
+            # sequentially process them
+        out_processor = [bar_dbn_processor, writer]
 
     # create an IOProcessor
     processor = IOProcessor(rnn_activations, out_processor, pass_kwargs=True)
