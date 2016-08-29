@@ -24,13 +24,14 @@ import numpy as np
 from madmom.features import Activations
 from madmom.features.chords import load_chords
 
-from . import AUDIO_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
-
+from . import AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
 
 tmp_act = tempfile.NamedTemporaryFile(delete=False).name
 tmp_result = tempfile.NamedTemporaryFile(delete=False).name
+tmp_dir = tempfile.mkdtemp()
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample2_file = pj(AUDIO_PATH, 'sample2.wav')
+sample_beats = pj(ANNOTATIONS_PATH, 'sample.beats')
 stereo_sample_file = pj(AUDIO_PATH, 'stereo_sample.wav')
 program_path = os.path.dirname(os.path.realpath(__file__)) + '/../bin/'
 
@@ -467,6 +468,36 @@ class TestDCChordRecognition(unittest.TestCase):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
             run_program([self.bin, 'single', sf, '-o', tmp_result])
             self._check_results(load_chords(tmp_result), true_res)
+
+
+class TestBarTrackerProgram(unittest.TestCase):
+    def setUp(self):
+        self.bin = os.path.join(program_path, 'BarTracker')
+        self.result_beat_ann = np.array([[0.091, 1], [0.8, 2], [1.481, 3],
+                                         [2.148, 1]])
+        self.result_beat_det = np.array([[0.1, 1], [0.45, 2], [0.8, 3],
+                                         [1.12, 1], [1.48, 2], [1.8, 3],
+                                         [2.15, 1], [2.49, 2]])
+        self.downbeat_result = self.result_beat_ann[
+                                   self.result_beat_ann[:, 1] == 1][:, 0]
+
+    def test_run(self):
+        # run with beat tracker
+        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result_beat_det))
+
+        # run using beat annotations
+        run_program([self.bin, '--load_beats', 'batch',
+                     '-o', tmp_dir, sample_file, sample_beats])
+        result = np.loadtxt(pj(tmp_dir, 'sample.beats.txt'))
+        self.assertTrue(np.allclose(result, self.result_beat_ann))
+
+    def test_run_downbeats(self):
+        run_program([self.bin, '--downbeats', '--load_beats', 'batch',
+                     '-o', tmp_dir, sample_file, sample_beats])
+        result = np.loadtxt(pj(tmp_dir, 'sample.beats.txt'))
+        self.assertTrue(np.allclose(result, self.downbeat_result))
 
 
 class TestGMMPatternTrackerProgram(unittest.TestCase):
