@@ -428,7 +428,7 @@ class IOProcessor(OutputProcessor):
 
     """
 
-    def __init__(self, in_processor, out_processor=None):
+    def __init__(self, in_processor, out_processor=None, pass_kwargs=False):
         # TODO: check the input and output processors!?
         #       as input a Processor, SequentialProcessor, ParallelProcessor
         #       or a function with only one argument should be accepted
@@ -449,6 +449,7 @@ class IOProcessor(OutputProcessor):
                 self.out_processor = out_processor[0]
         else:
             self.out_processor = out_processor
+        self.pass_kwargs=pass_kwargs
 
     def __getitem__(self, index):
         """
@@ -474,7 +475,7 @@ class IOProcessor(OutputProcessor):
             raise IndexError('Only `in_processor` at index 0 and '
                              '`out_processor` at index 1 are defined.')
 
-    def process(self, data, output=None):
+    def process(self, data, output=None, **kwargs):
         """
         Processes the data with the input processor and pipe everything into
         the output processor, which also pipes it to `output`.
@@ -494,7 +495,10 @@ class IOProcessor(OutputProcessor):
 
         """
         # process the data by the input processor
-        data = _process((self.in_processor, data, ))
+        if self.pass_kwargs:
+            data = _process((self.in_processor, data, kwargs))
+        else:
+            data = _process((self.in_processor, data))
         # process the data by the output processor and return it
         return _process((self.out_processor, data, output))
 
@@ -515,7 +519,7 @@ def process_single(processor, infile, outfile, **kwargs):
 
     """
     # pylint: disable=unused-argument
-    processor(infile, outfile)
+    processor(infile, outfile, **kwargs)
 
 
 class _ParallelProcess(mp.Process):
@@ -541,10 +545,10 @@ class _ParallelProcess(mp.Process):
         from .audio.signal import LoadAudioFileError
         while True:
             # get the task tuple
-            processor, infile, outfile = self.task_queue.get()
+            processor, infile, outfile, kwargs = self.task_queue.get()
             try:
                 # process the Processor with the data
-                processor.process(infile, outfile)
+                processor.process(infile, outfile, **kwargs)
             except LoadAudioFileError as e:
                 print(e)
             # signal that it is done
@@ -626,7 +630,7 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
         if output_suffix is not None:
             output_file += output_suffix
         # put processing tasks in the queue
-        tasks.put((processor, input_file, output_file))
+        tasks.put((processor, input_file, output_file, kwargs))
     # wait for all processing tasks to finish
     tasks.join()
 
