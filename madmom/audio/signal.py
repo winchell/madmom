@@ -1021,7 +1021,7 @@ def total_energy(frames):
     # make sure we have a FramedSignal
     if not isinstance(frames, FramedSignal):
         raise TypeError("Invalid type for input, must be a FramedSignal.")
-    return np.array([sum(x**2) for x in frames])
+    return np.array([np.dot(x.flatten(), x.flatten()) for x in frames])
 
 
 FRAME_SIZE = 2048
