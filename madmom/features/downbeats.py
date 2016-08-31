@@ -353,8 +353,8 @@ class DBNBarTrackingProcessor(Processor):
                             action=OverrideDefaultListAction,
                             default=beats_per_bar, type=int, sep=',',
                             help='number of beats per bar to be modeled (comma'
-                            ' separated list of bar length in beats) '
-                            '[default=%(default)s]')
+                            ' separated (no spaces!) list of bar length in '
+                            'beats) [default=%(default)s]')
         parser.add_argument('--observation_lambda', action='store', type=int,
                             default=observation_lambda, help='split one beat'
                             ' period into N parts, the first '

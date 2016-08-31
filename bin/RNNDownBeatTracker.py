@@ -12,8 +12,8 @@ import warnings
 from madmom.processors import (IOProcessor, io_arguments, ParallelProcessor)
 from madmom.utils import search_files, match_file
 from madmom.features import ActivationsProcessor
-from madmom.features.downbeats import RNNDownbeatTrackingProcessor, \
-    LoadBeatsProcessor
+from madmom.features.downbeats import (DBNBarTrackingProcessor,
+                                       LoadBeatsProcessor)
 
 
 def match_files(files, input_suffix, beat_suffix):
@@ -87,20 +87,15 @@ def main():
     p.add_argument('-is', dest='input_suffix', type=str, default='.npy',
                    help='suffix of input files [default=%(default).s]',
                    action='store')
-    p.add_argument('-beat_div', dest='beat_div', type=int, default=1,
-                   help='number of beat sub-divisions', action='store')
     p.add_argument('-pattern_change_prob', type=float, default=0.0,
                    help='pattern change probability [default=%(default).d]',
-                   action='store')
-    p.add_argument('-bar_shortcut_prob', type=float, default=0.0,
-                   help='bar shortcut probability [default=%(default).d]',
                    action='store')
     # TODO: switch warnings on again
     warnings.filterwarnings("ignore")
     # add processor arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
-    RNNDownbeatTrackingProcessor.add_arguments(p)
+    DBNBarTrackingProcessor.add_arguments(p)
     # parse arguments
     args = p.parse_args()
     # load activations and corresponding beat times
@@ -109,12 +104,11 @@ def main():
     # match feature and beat files
     args.files, beat_files = match_files(args.files, args.input_suffix,
                                          args.beat_suffix)
-    beat_loader = LoadBeatsProcessor(beat_files, args.input_suffix,
-                                     args.beat_suffix)
+    beat_loader = LoadBeatsProcessor(beat_files, args.beat_suffix)
     input_hmm = ParallelProcessor([rnn_activation_loader, beat_loader])
 
     # downbeat processor
-    downbeat_processor = RNNDownbeatTrackingProcessor(**vars(args))
+    downbeat_processor = DBNBarTrackingProcessor(**vars(args))
     if args.downbeats:
         # simply write the timestamps
         from madmom.utils import write_events as writer
