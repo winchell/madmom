@@ -413,7 +413,8 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
         return 0.
     # at least 2 annotations must be given to calculate an interval
     if len(annotations) < 2:
-        raise BeatIntervalError("At least 2 annotations are needed for"
+        return 0.
+        raise BeatIntervalError("At least 2 annotations are needed for "
                                 "P-Score.")
 
     # tolerance must be greater than 0
@@ -543,6 +544,7 @@ def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
         return 0.
     # at least 2 annotations must be given to calculate an interval
     if len(annotations) < 2:
+        return 0.
         raise BeatIntervalError("At least 2 annotations are needed for Goto's "
                                 "score.")
 
@@ -635,10 +637,12 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
         return 0., 0.
     # at least 2 annotations must be given to calculate an interval
     if len(annotations) < 2:
+        return 0., 0.
         raise BeatIntervalError("At least 2 annotations are needed for "
                                 "continuity scores, %s given." % annotations)
     # TODO: remove this, see TODO below
     if len(detections) < 2:
+        return 0., 0.
         raise BeatIntervalError("At least 2 detections are needed for"
                                 "continuity scores, %s given." % detections)
 
@@ -939,7 +943,9 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
 
     # at least 2 annotations must be given to calculate an interval
     if len(detections) < 2 or len(annotations) < 2:
-        raise BeatIntervalError("At least 2 annotations and 2 detections are"
+        max_length = max(len(detections), len(annotations))
+        return 0., np.ones(num_bins) * max_length / float(num_bins)
+        raise BeatIntervalError("At least 2 annotations and 2 detections are "
                                 "needed for Information gain.")
 
     # check if there are enough beat annotations for the number of bins
