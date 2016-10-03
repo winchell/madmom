@@ -4,6 +4,10 @@ Release Notes
 Version 0.15.dev0
 -----------------
 
+Bug fixes:
+
+* Fix downbeat evaluation failure (#216)
+
 Version 0.14.1 (release date: 2016-08-01)
 -----------------------------------------
 
