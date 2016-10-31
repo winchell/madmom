@@ -8,7 +8,9 @@ This file contains the setup for setuptools to distribute everything as a
 
 from setuptools import setup, find_packages
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
+
+import Cython
+from Cython.Build import cythonize
 
 import glob
 import numpy as np
@@ -73,10 +75,10 @@ setup(name='madmom',
       url='https://github.com/CPJKU/madmom',
       license='BSD, CC BY-NC-SA',
       packages=find_packages(exclude=['tests', 'docs']),
-      ext_modules=extensions,
+      ext_modules=cythonize(extensions),
       package_data={'madmom': package_data},
       exclude_package_data={'': ['tests', 'docs']},
       scripts=scripts,
-      cmdclass={'build_ext': build_ext},
+      cmdclass={'build_ext': Cython.Build.build_ext},
       test_suite='nose.collector',
       classifiers=classifiers)

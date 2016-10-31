@@ -11,6 +11,7 @@ Bug fixes:
 Other changes:
 
 * `num_threads` is passed to `ParallelProcessor` in single mode (#217)
+* use new Cython build system to build extensions (#227)
 
 Version 0.14.1 (release date: 2016-08-01)
 -----------------------------------------
