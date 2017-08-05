@@ -964,6 +964,10 @@ class DBNBeatTrackingProcessor(Processor):
                                 RNNBeatTrackingObservationModel as Om)
         from ..ml.hmm import HiddenMarkovModel as Hmm
 
+        import pyaudio
+        import wave
+        import sys
+
         # convert timing information to construct a beat state space
         min_interval = 60. * fps / max_bpm
         max_interval = 60. * fps / min_bpm
@@ -990,6 +994,15 @@ class DBNBeatTrackingProcessor(Processor):
             self.strength = 0
             self.last_beat = 0
             self.tempo = 0
+
+            self.beat_sound = wave.open('/Users/eric/madmom-fork/test.wav', 'rb')
+            self.p = pyaudio.PyAudio()
+            import sys
+            sys.stdout.write(str(self.beat_sound.getframerate()))
+            self.beat_stream = self.p.open(format=self.p.get_format_from_width(self.beat_sound.getsampwidth()),
+                            channels=self.beat_sound.getnchannels(),
+                            rate=self.beat_sound.getframerate(),
+                            output=True,start=False)
 
     def reset(self):
         """Reset the DBNBeatTrackingProcessor."""
@@ -1159,6 +1172,10 @@ class DBNBeatTrackingProcessor(Processor):
                 self.last_beat = cur_beat
                 # append to beats
                 beats_.append(cur_beat)
+                self.beat_stream.start_stream()
+                data = self.beat_sound.readframes(1024)
+                self.beat_stream.write(data)
+                self.beat_sound.rewind()
         # increase counter
         self.counter += len(activations)
         # return beat(s)
