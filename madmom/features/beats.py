@@ -995,14 +995,16 @@ class DBNBeatTrackingProcessor(Processor):
             self.last_beat = 0
             self.tempo = 0
 
-            self.beat_sound = wave.open('/Users/eric/madmom-fork/test.wav', 'rb')
-            self.p = pyaudio.PyAudio()
-            import sys
-            sys.stdout.write(str(self.beat_sound.getframerate()))
-            self.beat_stream = self.p.open(format=self.p.get_format_from_width(self.beat_sound.getsampwidth()),
-                            channels=self.beat_sound.getnchannels(),
-                            rate=self.beat_sound.getframerate(),
-                            output=True,start=False)
+            import OSC
+            self.osc_client = OSC.OSCClient()
+            self.osc_client.connect(('127.0.0.1', 57120)) 
+
+            self.osc_msg_beat_down = OSC.OSCMessage()
+            self.osc_msg_beat_down.setAddress("/beat")
+            self.osc_msg_beat_down.append(0)
+            self.osc_msg_beat_up = OSC.OSCMessage()
+            self.osc_msg_beat_up.setAddress("/beat")
+            self.osc_msg_beat_up.append(1)
 
     def reset(self):
         """Reset the DBNBeatTrackingProcessor."""
@@ -1172,10 +1174,16 @@ class DBNBeatTrackingProcessor(Processor):
                 self.last_beat = cur_beat
                 # append to beats
                 beats_.append(cur_beat)
-                self.beat_stream.start_stream()
-                data = self.beat_sound.readframes(1024)
-                self.beat_stream.write(data)
-                self.beat_sound.rewind()
+
+                # Send OSC messages.
+                self.osc_client.send(self.osc_msg_beat_down)
+                import thread
+                import time
+                def beat_up():
+                     time.sleep(0.05)
+                     self.osc_client.send(self.osc_msg_beat_up)
+                 thread.start_new_thread( beat_up, (), )
+ 
         # increase counter
         self.counter += len(activations)
         # return beat(s)
