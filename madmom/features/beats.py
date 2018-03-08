@@ -996,15 +996,43 @@ class DBNBeatTrackingProcessor(Processor):
             self.tempo = 0
 
             import OSC
+
+            # server constructed based on this example: https://github.com/ptone/pyosc/blob/master/examples/knect-rcv.py
+            from OSC import OSCServer
+            self.osc_server = OSCServer( ("0.0.0.0", 61111) )
+            self.osc_server.timeout = 0
+            def handle_timeout(self):
+                self.timed_out = True
+            import types
+            self.osc_server.handle_timeout = types.MethodType(handle_timeout, self.osc_server)
+            self.beat_enable = True
+
+            def user_callback(path, tags, args, source):
+                # which user will be determined by path:
+                # we just throw away all slashes and join together what's left
+                self.beat_enable = not self.beat_enable
+                print(self.beat_enable)
+                # tags will contain 'fff'
+                # args is a OSCMessage with data
+                # source is where the message came from (in case you need to reply)
+                #print ("Now do something with", user,args[2],args[0],1-args[1]) 
+
+            self.osc_server.addMsgHandler( "/enable", user_callback )
+            
             self.osc_client = OSC.OSCClient()
-            self.osc_client.connect(('127.0.0.1', 57120)) 
+            self.osc_client.connect(('127.0.0.1', 57120))
+
+            self.osc_msg_beat_up = OSC.OSCMessage()
+            self.osc_msg_beat_up.setAddress("/beat2")
+            self.osc_msg_beat_up.append(1)
 
             self.osc_msg_beat_down = OSC.OSCMessage()
-            self.osc_msg_beat_down.setAddress("/beat")
+            self.osc_msg_beat_down.setAddress("/beat2")
             self.osc_msg_beat_down.append(0)
-            self.osc_msg_beat_up = OSC.OSCMessage()
-            self.osc_msg_beat_up.setAddress("/beat")
-            self.osc_msg_beat_up.append(1)
+
+            self.osc_beat_count = 0
+
+
 
     def reset(self):
         """Reset the DBNBeatTrackingProcessor."""
@@ -1168,6 +1196,13 @@ class DBNBeatTrackingProcessor(Processor):
             # FIXME: this skips the first beat, but maybe this has a positive
             #        effect on the overall beat tracking accuracy
             if cur_beat >= next_beat:
+
+                # read from OSC server
+                self.osc_server.timed_out = False
+                # handle all pending requests then return
+                while not self.osc_server.timed_out:
+                    self.osc_server.handle_request()
+
                 # update tempo
                 self.tempo = 60. / (cur_beat - self.last_beat)
                 # update last beat
@@ -1176,13 +1211,35 @@ class DBNBeatTrackingProcessor(Processor):
                 beats_.append(cur_beat)
 
                 # Send OSC messages.
-                self.osc_client.send(self.osc_msg_beat_down)
-                import thread
-                import time
-                def beat_up():
-                     time.sleep(0.05)
-                     self.osc_client.send(self.osc_msg_beat_up)
-                 thread.start_new_thread( beat_up, (), )
+                if self.beat_enable:
+                    self.osc_beat_count += 1
+                    import OSC
+                    self.osc_msg_beat_count = OSC.OSCMessage()
+                    self.osc_msg_beat_count.setAddress("/beat")
+                    self.osc_msg_beat_count.append(self.osc_beat_count)
+                    self.osc_client.send(self.osc_msg_beat_count)
+
+                    if self.osc_beat_count % 2 == 0:
+                        self.osc_msg_beat_count = OSC.OSCMessage()
+                        self.osc_msg_beat_count.setAddress("/beat_tempo2")
+                        self.osc_msg_beat_count.append(self.osc_beat_count / 2)
+                        self.osc_client.send(self.osc_msg_beat_count)
+
+                    if self.osc_beat_count % 4 == 0:
+                        self.osc_msg_beat_count = OSC.OSCMessage()
+                        self.osc_msg_beat_count.setAddress("/beat_tempo4")
+                        self.osc_msg_beat_count.append(self.osc_beat_count / 4)
+                        self.osc_client.send(self.osc_msg_beat_count)
+
+                    self.osc_client.send(self.osc_msg_beat_up)
+
+                    import thread
+                    import time
+                    def beat_up():
+                         time.sleep(0.15)
+                         self.osc_client.send(self.osc_msg_beat_down)
+
+                    thread.start_new_thread( beat_up, (), )
  
         # increase counter
         self.counter += len(activations)
