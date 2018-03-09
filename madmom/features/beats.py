@@ -1007,7 +1007,7 @@ class DBNBeatTrackingProcessor(Processor):
             self.osc_server.handle_timeout = types.MethodType(handle_timeout, self.osc_server)
             self.beat_enable = True
 
-            def user_callback(path, tags, args, source):
+            def osc_toggle_callback(path, tags, args, source):
                 # which user will be determined by path:
                 # we just throw away all slashes and join together what's left
                 self.beat_enable = not self.beat_enable
@@ -1017,8 +1017,14 @@ class DBNBeatTrackingProcessor(Processor):
                 # source is where the message came from (in case you need to reply)
                 #print ("Now do something with", user,args[2],args[0],1-args[1]) 
 
-            self.osc_server.addMsgHandler( "/enable", user_callback )
+            self.osc_server.addMsgHandler( "/enable", osc_toggle_callback )
             
+            def osc_set_tempo_callback(path, tags, args, source):
+                self.osc_beat_tempo = args[0]
+                print("sup", args)
+
+            self.osc_server.addMsgHandler( "/tempo", osc_set_tempo_callback )
+
             self.osc_client = OSC.OSCClient()
             self.osc_client.connect(('127.0.0.1', 57120))
 
@@ -1030,7 +1036,11 @@ class DBNBeatTrackingProcessor(Processor):
             self.osc_msg_beat_down.setAddress("/beat2")
             self.osc_msg_beat_down.append(0)
 
+            # this value is used to know when to increment osc_beat_index based on a mod operation
             self.osc_beat_count = 0
+            # 1, 2, 4, 8, 16
+            self.osc_beat_tempo = 2 
+            self.osc_beat_index = 0
 
 
 
@@ -1213,22 +1223,14 @@ class DBNBeatTrackingProcessor(Processor):
                 # Send OSC messages.
                 if self.beat_enable:
                     self.osc_beat_count += 1
+
                     import OSC
-                    self.osc_msg_beat_count = OSC.OSCMessage()
-                    self.osc_msg_beat_count.setAddress("/beat")
-                    self.osc_msg_beat_count.append(self.osc_beat_count)
-                    self.osc_client.send(self.osc_msg_beat_count)
 
-                    if self.osc_beat_count % 2 == 0:
+                    if (self.osc_beat_tempo == 1) or (self.osc_beat_tempo == 2 and self.osc_beat_count % 2 == 0) or (self.osc_beat_tempo == 4 and self.osc_beat_count % 4 == 0) or (self.osc_beat_tempo == 8 and self.osc_beat_count % 8 == 0):
                         self.osc_msg_beat_count = OSC.OSCMessage()
-                        self.osc_msg_beat_count.setAddress("/beat_tempo2")
-                        self.osc_msg_beat_count.append(self.osc_beat_count / 2)
-                        self.osc_client.send(self.osc_msg_beat_count)
-
-                    if self.osc_beat_count % 4 == 0:
-                        self.osc_msg_beat_count = OSC.OSCMessage()
-                        self.osc_msg_beat_count.setAddress("/beat_tempo4")
-                        self.osc_msg_beat_count.append(self.osc_beat_count / 4)
+                        self.osc_msg_beat_count.setAddress("/beat_tempo")
+                        self.osc_beat_index += 1
+                        self.osc_msg_beat_count.append(self.osc_beat_index)
                         self.osc_client.send(self.osc_msg_beat_count)
 
                     self.osc_client.send(self.osc_msg_beat_up)
