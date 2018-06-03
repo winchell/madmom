@@ -1006,11 +1006,15 @@ class DBNBeatTrackingProcessor(Processor):
             import types
             self.osc_server.handle_timeout = types.MethodType(handle_timeout, self.osc_server)
             self.beat_enable = True
+            self.enable_reverse_loop_beat = True
 
             def osc_toggle_callback(path, tags, args, source):
                 # which user will be determined by path:
                 # we just throw away all slashes and join together what's left
-                self.beat_enable = not self.beat_enable
+                if args[0] == 1.0:
+                    self.beat_enable = True
+                else:
+                    self.beat_enable = False
                 print(self.beat_enable)
                 # tags will contain 'fff'
                 # args is a OSCMessage with data
@@ -1025,6 +1029,16 @@ class DBNBeatTrackingProcessor(Processor):
 
             self.osc_server.addMsgHandler( "/tempo", osc_set_tempo_callback )
 
+            def osc_enable_reverse_loop_callback(path, tags, args, source):
+                if args[0] == 1.0:
+                    self.enable_reverse_loop_beat = True
+                else: 
+                    self.enable_reverse_loop_beat = False
+                print("sup", args)
+
+            self.osc_server.addMsgHandler( "/enable_reverse_loop", osc_enable_reverse_loop_callback )
+
+
             self.osc_client = OSC.OSCClient()
             self.osc_client.connect(('127.0.0.1', 57120))
 
@@ -1037,6 +1051,8 @@ class DBNBeatTrackingProcessor(Processor):
             self.osc_msg_beat_down.append(0)
 
             # this value is used to know when to increment osc_beat_index based on a mod operation
+            self.osc_always_beat_count = 0
+            self.osc_reverse_loop_beat_count = 0
             self.osc_beat_count = 0
             # 1, 2, 4, 8, 16
             self.osc_beat_tempo = 2 
@@ -1221,10 +1237,18 @@ class DBNBeatTrackingProcessor(Processor):
                 beats_.append(cur_beat)
 
                 # Send OSC messages.
+                import OSC
+                self.osc_always_beat_count += 1
+
+                if self.enable_reverse_loop_beat:
+                    self.osc_reverse_loop_beat_count += 1
+                    self.osc_msg_beat_count = OSC.OSCMessage()
+                    self.osc_msg_beat_count.setAddress("/beat_reverse_loop")
+                    self.osc_msg_beat_count.append(self.osc_reverse_loop_beat_count)
+                    self.osc_client.send(self.osc_msg_beat_count)
+
                 if self.beat_enable:
                     self.osc_beat_count += 1
-
-                    import OSC
 
                     if (self.osc_beat_tempo == 1) or (self.osc_beat_tempo == 2 and self.osc_beat_count % 2 == 0) or (self.osc_beat_tempo == 4 and self.osc_beat_count % 4 == 0) or (self.osc_beat_tempo == 8 and self.osc_beat_count % 8 == 0):
                         self.osc_msg_beat_count = OSC.OSCMessage()
