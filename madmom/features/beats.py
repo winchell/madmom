@@ -1059,6 +1059,14 @@ class DBNBeatTrackingProcessor(Processor):
             self.osc_beat_index = 0
 
 
+            self.osc_msg_beat_up_always = OSC.OSCMessage()
+            self.osc_msg_beat_up_always.setAddress("/beat_always")
+            self.osc_msg_beat_up_always.append(1)
+            self.osc_msg_beat_down_always = OSC.OSCMessage()
+            self.osc_msg_beat_down_always.setAddress("/beat_always")
+            self.osc_msg_beat_down_always.append(0)
+            self.osc_beat_index_always = 0
+
 
     def reset(self):
         """Reset the DBNBeatTrackingProcessor."""
@@ -1267,6 +1275,17 @@ class DBNBeatTrackingProcessor(Processor):
 
                     thread.start_new_thread( beat_up, (), )
  
+                # Always send this one
+                self.osc_client.send(self.osc_msg_beat_up_always)
+                import thread
+                import time
+                def beat_up_always():
+                     time.sleep(0.15)
+                     self.osc_client.send(self.osc_msg_beat_down_always)
+                thread.start_new_thread( beat_up_always, (), )
+
+
+
         # increase counter
         self.counter += len(activations)
         # return beat(s)
